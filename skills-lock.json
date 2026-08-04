@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "openspec": {
+      "source": "itechmeat/llm-code",
+      "sourceType": "github",
+      "skillPath": "skills/openspec/SKILL.md",
+      "computedHash": "7cdd2add2698a326eb5b04fa8b481b5a0f825e3652c956a3987bd94bf0ff05cd"
+    },
+    "opensrc": {
+      "source": "vercel-labs/opensrc",
+      "sourceType": "github",
+      "skillPath": "skills/opensrc/SKILL.md",
+      "computedHash": "20d4395d64cae1e0de62053e1084c0ef58fbf573326a38fbd04f4bb677f0d729"
+    }
+  }
+}

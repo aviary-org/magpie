@@ -13,6 +13,7 @@ import type {
   UpcasterFn,
   UpcasterRegistration,
 } from "./registry.js";
+import { runSession, type Session, type SessionContext } from "./session.js";
 import { isStandardSchema } from "./standard-schema.js";
 
 /** Options for {@link createStore}. */
@@ -35,6 +36,8 @@ export interface Store {
   stream(name: string, contract: StreamContract): void;
   upcaster(storedName: string, upcast: UpcasterFn): void;
   aggregate(streamName: string, schema: StandardSchemaV1, fold: FoldFn): void;
+  /** Runs a callback in one transaction; queued writes commit or roll back together. */
+  session<T>(callback: (session: Session) => Promise<T> | T): Promise<T | undefined>;
   /** Applies all registered schema idempotently; safe to re-run. */
   migrate(): Promise<void>;
 }
@@ -60,10 +63,18 @@ export function createStore(options: StoreOptions): Store {
   const names = makeNames(schema);
 
   const documentTypes = new Map<string, DocumentRegistration>();
+  const documentBySchema = new Map<StandardSchemaV1, DocumentRegistration>();
   const eventShapes = new Map<string, EventRegistration>();
   const streams = new Map<string, StreamRegistration>();
   const upcasters = new Map<string, UpcasterRegistration>();
   const aggregates: AggregateRegistration[] = [];
+
+  const sessionContext: SessionContext = {
+    names,
+    eventShapes,
+    streams,
+    findDocument: (schema) => documentBySchema.get(schema),
+  };
 
   function requireStandardSchema(value: unknown, what: string): void {
     if (!isStandardSchema(value)) {
@@ -94,12 +105,14 @@ export function createStore(options: StoreOptions): Store {
       if (documentTypes.has(resolved.alias)) {
         throw new Error(`document "${resolved.alias}" is already registered`);
       }
-      documentTypes.set(resolved.alias, {
+      const registration: DocumentRegistration = {
         schema,
         alias: resolved.alias,
         idField: resolved.idField,
         fields: resolved.fields,
-      });
+      };
+      documentTypes.set(registration.alias, registration);
+      documentBySchema.set(schema, registration);
       migrated = false;
     },
     event(name, schema) {
@@ -136,6 +149,12 @@ export function createStore(options: StoreOptions): Store {
         throw new Error(`aggregate references unknown stream "${streamName}"`);
       }
       aggregates.push({ streamName, schema, fold });
+    },
+    async session<T>(callback: (session: Session) => Promise<T> | T): Promise<T | undefined> {
+      if (autoCreate) {
+        await ensureMigrated();
+      }
+      return runSession(sql, sessionContext, callback);
     },
     async migrate() {
       // autoCreate is the dev-mode convenience path: memoized until a new

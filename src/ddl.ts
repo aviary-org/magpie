@@ -170,7 +170,8 @@ export function eventStorageStatements(names: MagpieNames): readonly string[] {
     `CREATE TABLE IF NOT EXISTS ${streams} (\n` +
       "  id text PRIMARY KEY,\n" +
       "  version bigint NOT NULL,\n" +
-      "  type text NOT NULL\n" +
+      // NULL marks a stream no registration governs (audit-style appends).
+      "  type text\n" +
       ")",
   ];
 }

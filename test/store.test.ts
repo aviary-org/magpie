@@ -52,7 +52,7 @@ describe("createStore", () => {
 
   it("exposes the registration surface", () => {
     const store = makeStore();
-    for (const method of ["document", "event", "stream", "upcaster", "aggregate"]) {
+    for (const method of ["document", "event", "stream", "upcaster", "aggregate", "session"]) {
       expect(typeof (store as unknown as Record<string, unknown>)[method]).toBe("function");
     }
   });

@@ -24,9 +24,9 @@
 
 ## 4. Unit of work / session
 
-- [ ] 4.1 Implement `store.session(async s => ...)` using `sql.begin`, with `s.documents` and `s.events` handles scoped to the transaction
-- [ ] 4.2 Implement nested sessions as savepoints and `s.rollback()` typed sentinel (design D8)
-- [ ] 4.3 Implement the session's write queue: buffered document saves and event appends flushed atomically at session end
+- [x] 4.1 Implement `store.session(async s => ...)` using `sql.begin`, with `s.documents` and `s.events` handles scoped to the transaction
+- [x] 4.2 Implement nested sessions as savepoints and `s.rollback()` typed sentinel (design D8)
+- [x] 4.3 Implement the session's write queue: buffered document saves and event appends flushed atomically at session end
 
 ## 5. Document store
 

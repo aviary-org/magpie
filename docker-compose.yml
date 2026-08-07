@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${MAGPIE_TEST_USER:-magpie}
+      POSTGRES_PASSWORD: ${MAGPIE_TEST_PASSWORD:-magpie}
+      POSTGRES_DB: ${MAGPIE_TEST_DB:-magpie}
+    ports:
+      - "${MAGPIE_TEST_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MAGPIE_TEST_USER:-magpie} -d ${MAGPIE_TEST_DB:-magpie}"]
+      interval: 2s
+      timeout: 2s
+      retries: 30

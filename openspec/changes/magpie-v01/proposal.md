@@ -32,6 +32,6 @@ None — `openspec/specs/` is empty; this is a greenfield library.
 ## Impact
 
 - **New code**: entire library under a new `src/` tree in this repo; no existing code is modified.
-- **New runtime dependency**: `postgres` (postgres-js), user-injected. `standard-schema` is a type-level dependency only.
+- **New runtime dependency**: `postgres` (postgres-js), user-injected. `@standard-schema/spec` is a type-level dependency only.
 - **New tooling**: `magpie migrate` (idempotent DDL) and `magpie validate <streamId|all>` (backfill integrity) CLIs.
 - **Operations**: library tables live in a configurable Postgres schema (default `public`) under the fixed `magpie_` prefix; DDL is applied explicitly by the operator, never auto-created at runtime by default.

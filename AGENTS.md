@@ -67,6 +67,9 @@ openspec/            OpenSpec store
   changes/magpie-v01  active change (proposal, specs/, design.md, tasks.md)
   specs/              main specs (synced on archive)
   config.yaml         schema + optional project context/rules
+src/                 library source
+  index.ts            entry point (exports land here as the API grows)
+test/                Vitest suite (integration tests need the docker-compose Postgres)
 .agents/skills/       agent skills (openspec, opensrc — fetch dependency source)
 README.md
 AGENTS.md
@@ -105,5 +108,5 @@ AGENTS.md
 ## Commands
 
 - `pnpm install` — install dependencies (pnpm `^11.5.3`; `devEngines` will auto-download if absent)
-- `pnpm test` — currently a stub; the test suite (Vitest) is planned in tasks
+- `pnpm test` — Vitest suite; integration tests need the local Postgres from `docker compose up -d` (see `test/helpers/test-db.ts` for env overrides)
 - `openspec status --change magpie-v01` / `openspec validate magpie-v01 --strict` — change state and conformance

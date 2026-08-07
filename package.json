@@ -22,7 +22,7 @@
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run"
   },
   "keywords": [
     "postgres",
@@ -32,9 +32,11 @@
   ],
   "author": "",
   "devDependencies": {
+    "@standard-schema/spec": "^1.1.0",
     "@types/node": "^24.0.0",
     "tsup": "^8.0.0",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "vitest": "^4.1.10"
   },
   "devEngines": {
     "packageManager": {
@@ -42,5 +44,8 @@
       "version": "^11.5.3",
       "onFail": "download"
     }
+  },
+  "dependencies": {
+    "postgres": "^3.4.9"
   }
 }

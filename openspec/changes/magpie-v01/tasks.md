@@ -1,8 +1,8 @@
 ## 1. Project scaffold
 
 - [x] 1.1 Initialize TypeScript project: `package.json` (name `@aviary-org/magpie`, ESM), `tsconfig.json` (strict), build config for library output
-- [ ] 1.2 Add dependencies: `postgres` (runtime), `standard-schema` (type-level), Vitest (test)
-- [ ] 1.3 Set up test harness: Vitest config, `docker-compose.yml` for a local Postgres test database, test helper that creates an isolated database per test run
+- [x] 1.2 Add dependencies: `postgres` (runtime), `@standard-schema/spec` (type-level), Vitest (test)
+- [x] 1.3 Set up test harness: Vitest config, `docker-compose.yml` for a local Postgres test database, test helper that creates an isolated database per test run
 
 ## 2. Registration core
 

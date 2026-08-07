@@ -6,12 +6,12 @@
 
 ## 2. Registration core
 
-- [ ] 2.1 Implement `createStore({ sql, schema, autoCreate })` and the `Store` surface that holds registrations
-- [ ] 2.2 Implement Standard Schema resolution helper: `validateWith(schema, data)` returning typed issues, and type-level `SchemaOutput<T>` extraction from `~standard.types.output`
-- [ ] 2.3 Implement `store.document(schema, config?)` registration: alias derivation from schema/name, storage metadata surface (`fields`, id field) per design D6
-- [ ] 2.4 Implement `store.event(name, schema)` and `store.stream(name, { events })` registrations with the write-time event contract
-- [ ] 2.5 Implement `store.upcaster(name, fn)` registration keyed by stored event name, and `store.aggregate(stream, schema, fold)` registration referencing a stream
-- [ ] 2.6 Implement registration validation: duplicate names, stream referencing unknown event names, unknown aliases — all rejected at registration time
+- [x] 2.1 Implement `createStore({ sql, schema, autoCreate })` and the `Store` surface that holds registrations
+- [x] 2.2 Implement Standard Schema resolution helper: `validateWith(schema, data)` returning typed issues, and type-level `SchemaOutput<T>` extraction from `~standard.types.output`
+- [x] 2.3 Implement `store.document(schema, config?)` registration: alias derivation from schema/name, storage metadata surface (`fields`, id field) per design D6
+- [x] 2.4 Implement `store.event(name, schema)` and `store.stream(name, { events })` registrations with the write-time event contract
+- [x] 2.5 Implement `store.upcaster(name, fn)` registration keyed by stored event name, and `store.aggregate(stream, schema, fold)` registration referencing a stream
+- [x] 2.6 Implement registration validation: duplicate names, stream referencing unknown event names, unknown aliases — all rejected at registration time
 
 ## 3. Storage layout and DDL
 

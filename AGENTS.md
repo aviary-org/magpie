@@ -6,7 +6,7 @@ Guidance for AI agents and contributors working in this repository.
 
 ## Project Overview
 
-A single TypeScript library (`@aviary-org/magpie`) that turns Postgres into a **document store**, an **event store**, and one **consistency boundary**. ESM, pnpm (`^11.5.3`), MIT. Design phase — no source code yet; the v0.1 scope is fully captured in the OpenSpec change `magpie-v01`.
+A single TypeScript library (`@aviary-org/magpie`) that turns Postgres into a **document store**, an **event store**, and one **consistency boundary**. ESM, pnpm (`^11.5.3`), MIT. Implementation in progress; the v0.1 scope is tracked in the OpenSpec change `magpie-v01`.
 
 Authoritative docs, in order:
 1. `openspec/changes/magpie-v01/proposal.md` — why and what (scope, non-goals)

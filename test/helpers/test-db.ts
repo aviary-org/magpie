@@ -9,6 +9,12 @@ export interface TestDatabaseConfig {
   readonly password: string;
 }
 
+/** Optional connection settings for the isolated test database. */
+export interface TestDatabaseOptions {
+  /** Silences server NOTICEs (e.g. "already exists, skipping"); defaults to the driver default. */
+  readonly onnotice?: (notice: postgres.Notice) => void;
+}
+
 /** An isolated Postgres database created for one test run. */
 export interface TestDatabase {
   /** Postgres client bound to the isolated database. */
@@ -40,7 +46,7 @@ export function testConfigFromEnv(): TestDatabaseConfig {
   };
 }
 
-export async function createTestDatabase(): Promise<TestDatabase> {
+export async function createTestDatabase(options: TestDatabaseOptions = {}): Promise<TestDatabase> {
   const config = testConfigFromEnv();
   const databaseName = `magpie_test_${randomBytes(8).toString("hex")}`;
   // The name is generated hex-only, so inlining it into DDL is safe; postgres-js has no identifier helper.
@@ -51,7 +57,11 @@ export async function createTestDatabase(): Promise<TestDatabase> {
     await admin.end();
     throw error;
   }
-  const sql = postgres({ ...config, database: databaseName });
+  const sql = postgres({
+    ...config,
+    database: databaseName,
+    ...(options.onnotice === undefined ? {} : { onnotice: options.onnotice }),
+  });
   return {
     sql,
     databaseName,

@@ -15,12 +15,12 @@
 
 ## 3. Storage layout and DDL
 
-- [ ] 3.1 Implement the table/sequence naming module (`magpie_` prefix, configurable schema, `magpie_doc_<alias>` convention)
-- [ ] 3.2 Implement DDL generation for a document table: `id`, `version` (bigint), `data` (jsonb), `last_modified`, `deleted`, `deleted_at`, plus per-field duplicated index columns (design D2, D6)
-- [ ] 3.3 Implement DDL for event storage: `magpie_events` (id, stream_id, version, type, data, timestamp), `magpie_streams` (id, version, type), `magpie_events_sequence` with `(stream_id, version)` unique index
-- [ ] 3.4 Implement `store.migrate()`: idempotent apply of all registered schema (`IF NOT EXISTS` variants), plus `autoCreate: true` lazy path
-- [ ] 3.5 Implement the immutable cast wrapper functions (`magpie_immutable_timestamptz`, `magpie_immutable_timestamp`, `magpie_immutable_date`) in `migrate()` output
-- [ ] 3.6 Implement `magpie migrate` CLI (reads config, runs migrate against the connection string)
+- [x] 3.1 Implement the table/sequence naming module (`magpie_` prefix, configurable schema, `magpie_doc_<alias>` convention)
+- [x] 3.2 Implement DDL generation for a document table: `id`, `version` (bigint), `data` (jsonb), `last_modified`, `deleted`, `deleted_at`, plus per-field duplicated index columns (design D2, D6)
+- [x] 3.3 Implement DDL for event storage: `magpie_events` (id, stream_id, version, type, data, timestamp), `magpie_streams` (id, version, type), `magpie_events_sequence` with `(stream_id, version)` unique index
+- [x] 3.4 Implement `store.migrate()`: idempotent apply of all registered schema (`IF NOT EXISTS` variants), plus `autoCreate: true` lazy path
+- [x] 3.5 Implement the immutable cast wrapper functions (`magpie_immutable_timestamptz`, `magpie_immutable_timestamp`, `magpie_immutable_date`) in `migrate()` output
+- [x] 3.6 Implement `magpie migrate` CLI (reads config, runs migrate against the connection string)
 
 ## 4. Unit of work / session
 

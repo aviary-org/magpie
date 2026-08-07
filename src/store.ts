@@ -1,6 +1,8 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { Sql } from "postgres";
 import { type DocumentConfigFn, resolveDocumentConfig } from "./document.js";
+import { applyMigrations } from "./migrate.js";
+import { makeNames } from "./naming.js";
 import type {
   AggregateRegistration,
   DocumentRegistration,
@@ -33,6 +35,8 @@ export interface Store {
   stream(name: string, contract: StreamContract): void;
   upcaster(storedName: string, upcast: UpcasterFn): void;
   aggregate(streamName: string, schema: StandardSchemaV1, fold: FoldFn): void;
+  /** Applies all registered schema idempotently; safe to re-run. */
+  migrate(): Promise<void>;
 }
 
 const DEFAULT_SCHEMA = "public";
@@ -43,13 +47,17 @@ export function createStore(options: StoreOptions): Store {
   if (!options?.sql) {
     throw new Error("createStore requires a postgres sql instance");
   }
+  const sql = options.sql;
   const schema = options.schema ?? DEFAULT_SCHEMA;
   if (!SCHEMA_PATTERN.test(schema)) {
     throw new Error(`createStore: schema must be a bare Postgres identifier, got "${schema}"`);
   }
+  const autoCreate = options.autoCreate ?? false;
   if (options.autoCreate !== undefined && typeof options.autoCreate !== "boolean") {
     throw new Error("createStore: autoCreate must be a boolean");
   }
+
+  const names = makeNames(schema);
 
   const documentTypes = new Map<string, DocumentRegistration>();
   const eventShapes = new Map<string, EventRegistration>();
@@ -69,6 +77,16 @@ export function createStore(options: StoreOptions): Store {
     }
   }
 
+  let migrated = false;
+
+  async function ensureMigrated(): Promise<void> {
+    if (migrated) {
+      return;
+    }
+    await applyMigrations(sql, names, [...documentTypes.values()]);
+    migrated = true;
+  }
+
   return {
     document(schema, config) {
       requireStandardSchema(schema, "document schema");
@@ -82,6 +100,7 @@ export function createStore(options: StoreOptions): Store {
         idField: resolved.idField,
         fields: resolved.fields,
       });
+      migrated = false;
     },
     event(name, schema) {
       requireName(name, "event");
@@ -117,6 +136,16 @@ export function createStore(options: StoreOptions): Store {
         throw new Error(`aggregate references unknown stream "${streamName}"`);
       }
       aggregates.push({ streamName, schema, fold });
+    },
+    async migrate() {
+      // autoCreate is the dev-mode convenience path: memoized until a new
+      // document registration changes the schema. The explicit path always
+      // re-applies, so a manual drop is recovered by re-running migrate.
+      if (autoCreate) {
+        await ensureMigrated();
+        return;
+      }
+      await applyMigrations(sql, names, [...documentTypes.values()]);
     },
   };
 }

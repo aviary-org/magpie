@@ -1,20 +1,46 @@
 {
   "name": "@aviary-org/magpie",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "0.1.0",
+  "description": "Postgres as a document store, an event store, and one consistency boundary.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": [
+    "postgres",
+    "event-sourcing",
+    "document-store",
+    "event-store"
+  ],
   "author": "",
-  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.8.0"
+  },
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
       "version": "^11.5.3",
       "onFail": "download"
     }
-  },
-  "type": "module"
+  }
 }

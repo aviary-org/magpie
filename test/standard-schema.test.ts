@@ -1,6 +1,6 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { isStandardSchema, validateWith, type SchemaOutput } from "../src/index.js";
+import { isStandardSchema, type SchemaOutput, validateWith } from "../src/index.js";
 
 interface Account {
   id: string;

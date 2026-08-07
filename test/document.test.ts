@@ -58,9 +58,27 @@ describe("resolveDocumentConfig", () => {
     expect(resolved.idField).toBe("id");
     expect(resolved.fields).toEqual([
       { path: ["id"], cast: "uuid", isPrimaryKey: true, isIndexed: false, hasContainsIndex: false },
-      { path: ["balance"], cast: "numeric", isPrimaryKey: false, isIndexed: true, hasContainsIndex: false },
-      { path: ["address", "city"], cast: undefined, isPrimaryKey: false, isIndexed: true, hasContainsIndex: false },
-      { path: ["tags"], cast: undefined, isPrimaryKey: false, isIndexed: false, hasContainsIndex: true },
+      {
+        path: ["balance"],
+        cast: "numeric",
+        isPrimaryKey: false,
+        isIndexed: true,
+        hasContainsIndex: false,
+      },
+      {
+        path: ["address", "city"],
+        cast: undefined,
+        isPrimaryKey: false,
+        isIndexed: true,
+        hasContainsIndex: false,
+      },
+      {
+        path: ["tags"],
+        cast: undefined,
+        isPrimaryKey: false,
+        isIndexed: false,
+        hasContainsIndex: true,
+      },
     ]);
   });
 

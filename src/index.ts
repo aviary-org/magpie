@@ -1,8 +1,10 @@
-export { createStore } from "./store.js";
-export { isStandardSchema, validateWith } from "./standard-schema.js";
-export type { Store, StoreOptions } from "./store.js";
-export type { SchemaOutput, ValidationIssue, ValidationResult } from "./standard-schema.js";
-export type { DocumentConfig, DocumentConfigFn, FieldBuilder, FieldSpec, PathRoot } from "./document.js";
+export type {
+  DocumentConfig,
+  DocumentConfigFn,
+  FieldBuilder,
+  FieldSpec,
+  PathRoot,
+} from "./document.js";
 export type {
   AggregateRegistration,
   DocumentRegistration,
@@ -13,3 +15,7 @@ export type {
   UpcasterFn,
   UpcasterRegistration,
 } from "./registry.js";
+export type { SchemaOutput, ValidationIssue, ValidationResult } from "./standard-schema.js";
+export { isStandardSchema, validateWith } from "./standard-schema.js";
+export type { Store, StoreOptions } from "./store.js";
+export { createStore } from "./store.js";

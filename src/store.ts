@@ -1,7 +1,6 @@
-import type { Sql } from "postgres";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import { resolveDocumentConfig, type DocumentConfigFn } from "./document.js";
-import { isStandardSchema } from "./standard-schema.js";
+import type { Sql } from "postgres";
+import { type DocumentConfigFn, resolveDocumentConfig } from "./document.js";
 import type {
   AggregateRegistration,
   DocumentRegistration,
@@ -12,6 +11,7 @@ import type {
   UpcasterFn,
   UpcasterRegistration,
 } from "./registry.js";
+import { isStandardSchema } from "./standard-schema.js";
 
 /** Options for {@link createStore}. */
 export interface StoreOptions {
@@ -25,7 +25,10 @@ export interface StoreOptions {
 
 /** The store: registration surface for documents, events, streams, upcasters, and aggregates. */
 export interface Store {
-  document<TSchema extends StandardSchemaV1>(schema: TSchema, config?: DocumentConfigFn<TSchema>): void;
+  document<TSchema extends StandardSchemaV1>(
+    schema: TSchema,
+    config?: DocumentConfigFn<TSchema>,
+  ): void;
   event(name: string, schema: StandardSchemaV1): void;
   stream(name: string, contract: StreamContract): void;
   upcaster(storedName: string, upcast: UpcasterFn): void;

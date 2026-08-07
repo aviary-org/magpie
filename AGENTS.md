@@ -60,6 +60,8 @@ openspec validate magpie-v01 --strict     # spec/scenario conformance
 
 When implementing: update `tasks.md` checkboxes, and update `design.md`/`specs/` if the implementation reveals a wrong decision — the artifacts are the source of truth, not the code.
 
+Before declaring work done: run `pnpm lint` (and `pnpm typecheck`) and leave the tree clean — never finish a task with Biome violations.
+
 ## Repository Layout
 
 ```
@@ -108,5 +110,7 @@ AGENTS.md
 ## Commands
 
 - `pnpm install` — install dependencies (pnpm `^11.5.3`; `devEngines` will auto-download if absent)
+- `pnpm lint` — Biome check (lint rules + formatting + import order); run it before finishing any work
+- `pnpm lint:fix` — apply Biome's safe fixes (format, organize imports)
 - `pnpm test` — Vitest suite; integration tests need the local Postgres from `docker compose up -d` (see `test/helpers/test-db.ts` for env overrides)
 - `openspec status --change magpie-v01` / `openspec validate magpie-v01 --strict` — change state and conformance

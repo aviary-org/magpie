@@ -139,11 +139,12 @@ function makeNode(path: readonly string[]): FieldBuilder {
 
 type PathNode<TValue, TPath extends readonly string[]> = PathNodeOf<NonNullable<TValue>, TPath>;
 
-type PathNodeOf<TValue, TPath extends readonly string[]> =
-  TValue extends Date
+type PathNodeOf<TValue, TPath extends readonly string[]> = TValue extends Date
+  ? FieldBuilder<TPath>
+  : TValue extends readonly unknown[]
     ? FieldBuilder<TPath>
-    : TValue extends readonly unknown[]
-      ? FieldBuilder<TPath>
-      : TValue extends object
-        ? { readonly [K in keyof TValue & string]: PathNode<TValue[K], [...TPath, K]> } & FieldBuilder<TPath>
-        : FieldBuilder<TPath>;
+    : TValue extends object
+      ? {
+          readonly [K in keyof TValue & string]: PathNode<TValue[K], [...TPath, K]>;
+        } & FieldBuilder<TPath>
+      : FieldBuilder<TPath>;

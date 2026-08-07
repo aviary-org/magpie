@@ -1,5 +1,5 @@
-import type { Sql } from "postgres";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
+import type { Sql } from "postgres";
 import { describe, expect, it } from "vitest";
 import { createStore, type Store, type StoreOptions } from "../src/index.js";
 

@@ -1,10 +1,6 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import {
-  createTestDatabase,
-  testConfigFromEnv,
-  type TestDatabase,
-} from "./helpers/test-db.js";
+import { createTestDatabase, type TestDatabase, testConfigFromEnv } from "./helpers/test-db.js";
 
 let db: TestDatabase;
 

@@ -64,10 +64,10 @@
 
 ## 9. Consistency and concurrency
 
-- [ ] 9.1 Integration tests: concurrent appends to the same stream from parallel sessions — exactly one wins per version (consistency spec)
-- [ ] 9.2 Integration tests: concurrent saves of the same document — exactly one wins; `expectedVersion: "any"` bypass succeeds
-- [ ] 9.3 Integration tests: document + event in one session commit atomically; forced failure rolls back both
-- [ ] 9.4 Integration tests: inline projection reflects the event at write-acknowledged time; failed write leaves projection unchanged
+- [x] 9.1 Integration tests: concurrent appends to the same stream from parallel sessions — exactly one wins per version (consistency spec)
+- [x] 9.2 Integration tests: concurrent saves of the same document — exactly one wins; `expectedVersion: "any"` bypass succeeds
+- [x] 9.3 Integration tests: document + event in one session commit atomically; forced failure rolls back both
+- [x] 9.4 Integration tests: inline projection reflects the event at write-acknowledged time; failed write leaves projection unchanged
 
 ## 10. Operability tooling
 

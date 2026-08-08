@@ -16,7 +16,13 @@ export type {
   UpcasterFn,
   UpcasterRegistration,
 } from "./registry.js";
-export type { AppendEvent, Session, SessionDocuments, SessionEvents } from "./session.js";
+export type {
+  AppendEvent,
+  LoadedDocument,
+  Session,
+  SessionDocuments,
+  SessionEvents,
+} from "./session.js";
 export type { SchemaOutput, ValidationIssue, ValidationResult } from "./standard-schema.js";
 export { isStandardSchema, validateWith } from "./standard-schema.js";
 export type { Store, StoreOptions } from "./store.js";

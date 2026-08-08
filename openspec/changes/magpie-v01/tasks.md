@@ -30,11 +30,11 @@
 
 ## 5. Document store
 
-- [ ] 5.1 Implement save: upsert with `version + 1` and `where id = ? and version = ?` guard, returning the new version; zero rows → concurrency error (design D2)
-- [ ] 5.2 Implement `expectedVersion: "any"` bypass: unconditional `ON CONFLICT (id) DO UPDATE`, version still advances (design D9)
-- [ ] 5.3 Implement load by id with absence-as-nothing semantics; load by id + expected version
-- [ ] 5.4 Implement soft delete (set `deleted`, `deleted_at`; excluded from reads) and hard delete (row removal) (design D1)
-- [ ] 5.5 Implement save-time validation against the registered schema; invalid documents rejected with issues before any SQL
+- [x] 5.1 Implement save: upsert with `version + 1` and `where id = ? and version = ?` guard, returning the new version; zero rows → concurrency error (design D2)
+- [x] 5.2 Implement `expectedVersion: "any"` bypass: unconditional `ON CONFLICT (id) DO UPDATE`, version still advances (design D9)
+- [x] 5.3 Implement load by id with absence-as-nothing semantics; load by id + expected version
+- [x] 5.4 Implement soft delete (set `deleted`, `deleted_at`; excluded from reads) and hard delete (row removal) (design D1)
+- [x] 5.5 Implement save-time validation against the registered schema; invalid documents rejected with issues before any SQL
 
 ## 6. Query engine
 

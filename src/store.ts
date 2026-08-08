@@ -13,8 +13,15 @@ import type {
   UpcasterFn,
   UpcasterRegistration,
 } from "./registry.js";
-import { runSession, type Session, type SessionContext } from "./session.js";
-import { isStandardSchema } from "./standard-schema.js";
+import {
+  type LoadedDocument,
+  loadDocument,
+  runSession,
+  type Session,
+  type SessionContext,
+  type StoreReadSql,
+} from "./session.js";
+import { isStandardSchema, type SchemaOutput } from "./standard-schema.js";
 
 /** Options for {@link createStore}. */
 export interface StoreOptions {
@@ -38,6 +45,15 @@ export interface Store {
   aggregate(streamName: string, schema: StandardSchemaV1, fold: FoldFn): void;
   /** Runs a callback in one transaction; queued writes commit or roll back together. */
   session<T>(callback: (session: Session) => Promise<T> | T): Promise<T | undefined>;
+  /**
+   * Reads a document by id outside a session; returns nothing when absent
+   * (soft-deleted rows count as absent). An `expectedVersion` guards the read.
+   */
+  load<TSchema extends StandardSchemaV1>(
+    schema: TSchema,
+    id: string | number | bigint,
+    expectedVersion?: bigint,
+  ): Promise<LoadedDocument<SchemaOutput<TSchema>> | undefined>;
   /** Applies all registered schema idempotently; safe to re-run. */
   migrate(): Promise<void>;
 }
@@ -165,6 +181,20 @@ export function createStore(options: StoreOptions): Store {
         return;
       }
       await applyMigrations(sql, names, [...documentTypes.values()]);
+    },
+    async load<TSchema extends StandardSchemaV1>(
+      schema: TSchema,
+      id: string | number | bigint,
+      expectedVersion?: bigint,
+    ): Promise<LoadedDocument<SchemaOutput<TSchema>> | undefined> {
+      if (autoCreate) {
+        await ensureMigrated();
+      }
+      const registration = documentBySchema.get(schema);
+      if (registration === undefined) {
+        throw new Error("load: the given schema is not registered as a document type");
+      }
+      return loadDocument(sql as unknown as StoreReadSql, names, registration, id, expectedVersion);
     },
   };
 }

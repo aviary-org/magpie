@@ -1,5 +1,5 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import type { JSONValue, Sql, TransactionSql } from "postgres";
+import type { ISql, JSONValue, Sql, TransactionSql } from "postgres";
 import { ConcurrencyError, RollbackSignal, ValidationError } from "./errors.js";
 import type { MagpieNames } from "./naming.js";
 import type { DocumentRegistration, EventRegistration, StreamRegistration } from "./registry.js";
@@ -11,7 +11,15 @@ export interface AppendEvent {
   readonly data: unknown;
 }
 
-/** The session-scoped document write surface. */
+/** A document loaded from storage: its data plus the version to hand back on save. */
+export interface LoadedDocument<TOutput> {
+  /** The stored document payload, parsed from jsonb. */
+  readonly data: TOutput;
+  /** The stored version; pass it back to save as `expectedVersion` to update. */
+  readonly version: bigint;
+}
+
+/** The session-scoped document surface. */
 export interface SessionDocuments {
   /**
    * Queues a document save, validated against its registered shape before any SQL runs.
@@ -22,6 +30,25 @@ export interface SessionDocuments {
     schema: TSchema,
     document: SchemaOutput<TSchema>,
     options?: { readonly expectedVersion?: bigint | "any" },
+  ): Promise<void>;
+  /**
+   * Reads a document by id; returns nothing when absent (soft-deleted rows count as
+   * absent). An `expectedVersion` guards the read: a mismatch raises a concurrency error.
+   */
+  load<TSchema extends StandardSchemaV1>(
+    schema: TSchema,
+    id: string | number | bigint,
+    expectedVersion?: bigint,
+  ): Promise<LoadedDocument<SchemaOutput<TSchema>> | undefined>;
+  /**
+   * Deletes a document. Soft delete (the default) flips the `deleted` flags without
+   * advancing the version, so a later save resurrects the row; hard delete removes it.
+   * Deleting a missing or already-soft-deleted document is a no-op.
+   */
+  delete<TSchema extends StandardSchemaV1>(
+    schema: TSchema,
+    id: string | number | bigint,
+    options?: { readonly hard?: boolean },
   ): Promise<void>;
 }
 
@@ -65,9 +92,17 @@ const DEFAULT_EXPECTED_VERSION = 0n;
 /** Transaction handle whose parameters admit bigints; postgres-js serializes them as int8. */
 type SessionTx = TransactionSql<{ int8: bigint }>;
 
+/** Read handle (transaction or store) with the same parameter admission. */
+export type StoreReadSql = ISql<{ int8: bigint }>;
+
 interface SaveRow {
   readonly version: string;
   readonly inserted: boolean;
+}
+
+interface LoadRow {
+  readonly data: unknown;
+  readonly version: string;
 }
 
 interface StreamRow {
@@ -107,6 +142,8 @@ class SessionImpl implements Session {
   ) {
     this.documents = {
       save: (schema, document, options) => this.enqueueSave(schema, document, options),
+      load: (schema, id, expectedVersion) => this.load(schema, id, expectedVersion),
+      delete: (schema, id, options) => this.enqueueDelete(schema, id, options?.hard ?? false),
     };
     this.events = {
       append: (streamId, events, options) => this.enqueueAppend(streamId, events, options),
@@ -133,10 +170,38 @@ class SessionImpl implements Session {
     throw new RollbackSignal();
   }
 
+  /** Runs every queued write and drains the queue; safe to call mid-session before a read. */
   async flush(): Promise<void> {
-    for (const operation of this.queue) {
+    const operations = this.queue.splice(0);
+    for (const operation of operations) {
       await operation();
     }
+  }
+
+  private async load<TSchema extends StandardSchemaV1>(
+    schema: TSchema,
+    id: string | number | bigint,
+    expectedVersion?: bigint,
+  ): Promise<LoadedDocument<SchemaOutput<TSchema>> | undefined> {
+    const registration = this.context.findDocument(schema);
+    if (registration === undefined) {
+      throw new Error("load: the given schema is not registered as a document type");
+    }
+    // Pending writes must be visible to the read: flush them first, still in this transaction.
+    await this.flush();
+    return loadDocument(this.tx, this.context.names, registration, id, expectedVersion);
+  }
+
+  private async enqueueDelete<TSchema extends StandardSchemaV1>(
+    schema: TSchema,
+    id: string | number | bigint,
+    hard: boolean,
+  ): Promise<void> {
+    const registration = this.context.findDocument(schema);
+    if (registration === undefined) {
+      throw new Error("delete: the given schema is not registered as a document type");
+    }
+    this.queue.push(() => flushDelete(this.tx, this.context.names, registration, id, hard));
   }
 
   private async enqueueSave<TSchema extends StandardSchemaV1>(
@@ -201,10 +266,7 @@ async function flushSave(
   expectedVersion: bigint | "any",
 ): Promise<void> {
   const table = tx(names.documentTable(registration.alias));
-  const idField = registration.fields.find(
-    (field) => field.path.join(".") === registration.idField,
-  );
-  const idCast = idField?.cast ?? "text";
+  const idCast = idCastOf(registration);
   const guard = expectedVersion === "any" ? tx`` : tx`where ${table}.version = ${expectedVersion}`;
   const rows = (await tx`
     insert into ${table} (id, version, data)
@@ -292,6 +354,57 @@ async function flushAppend(
   } catch (error) {
     throw concurrencyOr(error, `stream "${streamId}"`);
   }
+}
+
+/** Reads one document row by id, excluding soft-deleted rows; shared by session and store. */
+export async function loadDocument(
+  sql: StoreReadSql,
+  names: MagpieNames,
+  registration: DocumentRegistration,
+  id: string | number | bigint,
+  expectedVersion?: bigint,
+): Promise<LoadedDocument<unknown> | undefined> {
+  const table = sql(names.documentTable(registration.alias));
+  const rows = (await sql`
+    select data, version from ${table}
+    where id = ${id}::${sql.unsafe(idCastOf(registration))} and deleted = false
+  `) as LoadRow[];
+  const row = rows[0];
+  if (row === undefined) {
+    return undefined;
+  }
+  const storedVersion = BigInt(row.version);
+  if (expectedVersion !== undefined && storedVersion !== expectedVersion) {
+    throw new ConcurrencyError(
+      `document "${registration.alias}" (id ${String(id)}): expected version ${expectedVersion}, but the stored version is ${storedVersion}`,
+    );
+  }
+  return { data: row.data, version: storedVersion };
+}
+
+async function flushDelete(
+  tx: SessionTx,
+  names: MagpieNames,
+  registration: DocumentRegistration,
+  id: string | number | bigint,
+  hard: boolean,
+): Promise<void> {
+  const table = tx(names.documentTable(registration.alias));
+  if (hard) {
+    await tx`delete from ${table} where id = ${id}::${tx.unsafe(idCastOf(registration))}`;
+    return;
+  }
+  await tx`update ${table}
+    set deleted = true, deleted_at = now()
+    where id = ${id}::${tx.unsafe(idCastOf(registration))} and deleted = false`;
+}
+
+/** The explicit cast of the registered id field, `text` when unset. */
+function idCastOf(registration: DocumentRegistration): string {
+  const idField = registration.fields.find(
+    (field) => field.path.join(".") === registration.idField,
+  );
+  return idField?.cast ?? "text";
 }
 
 async function insertEvents(

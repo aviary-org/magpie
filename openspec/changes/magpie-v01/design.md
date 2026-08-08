@@ -33,6 +33,7 @@ One Postgres table per registered document type, named `magpie_doc_<alias>`, liv
 
 All documents (hand-saved and projection snapshots) use a single `bigint` version column:
 - Hand-saved docs: `set version = version + 1 where id = ? and version = ?` — zero rows affected → concurrency error.
+- Deletes: soft delete flips `deleted`/`deleted_at` without advancing the version (a delete is not a data revision); a later save — carrying the pre-delete version or `"any"` — resurrects the row by resetting the flags. Hard delete removes the row.
 - Inline projection snapshots: version sourced from the stream's current version via a subquery (`COALESCE((select version from magpie_streams where id = ...), fallback)`); the guard is `where ? = 0 or stream_version <= ?` when an expected version is supplied. The snapshot's version literally means "the stream version this snapshot reflects".
 
 **Why:** Two physical modes exist (uuid optimistic tokens, long revisions); projection documents are forced into revision mode by policy, because a snapshot's version naturally means "the stream version this snapshot reflects". Unifying on `bigint` gives one SQL pattern, one mental model. The version value is opaque in the typed API (read it, hand it back), so the wire type is invisible to users. If a uuid-etag mode is ever needed post-v0.1 (e.g. async rebuilds wanting non-monotonic tokens), it is additive: a new optional column, never a migration of existing rows.

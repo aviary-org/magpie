@@ -30,6 +30,12 @@ import {
   type StoreReadSql,
 } from "./session.js";
 import { isStandardSchema, type SchemaOutput } from "./standard-schema.js";
+import {
+  type ValidateContext,
+  type ValidateOptions,
+  type ValidationReport,
+  validateStore,
+} from "./validate.js";
 
 /** Options for {@link createStore}. */
 export interface StoreOptions {
@@ -99,6 +105,14 @@ export interface Store {
   ): Promise<SchemaOutput<TSchema> | undefined>;
   /** Applies all registered schema idempotently; safe to re-run. */
   migrate(): Promise<void>;
+  /**
+   * Scans stored data against the registered shapes without writing: every event
+   * row (or one stream's), upcast first, plus optionally every registered document
+   * type's rows. Reports each mismatching row with its identifiers and issues;
+   * rows whose type has no registered shape are mismatches. The backfill check:
+   * run it before pointing an app at imported data.
+   */
+  validate(options?: ValidateOptions): Promise<ValidationReport>;
 }
 
 const DEFAULT_SCHEMA = "public";
@@ -145,6 +159,13 @@ export function createStore(options: StoreOptions): Store {
     names,
     eventShapes,
     upcasters,
+  };
+
+  const validateContext: ValidateContext = {
+    names,
+    eventShapes,
+    upcasters,
+    documents: documentTypes,
   };
 
   function requireStandardSchema(value: unknown, what: string): void {
@@ -328,6 +349,12 @@ export function createStore(options: StoreOptions): Store {
         streamId,
       );
       return state as SchemaOutput<TSchema> | undefined;
+    },
+    async validate(options?: ValidateOptions): Promise<ValidationReport> {
+      if (autoCreate) {
+        await ensureMigrated();
+      }
+      return validateStore(sql as unknown as StoreReadSql, validateContext, options ?? {});
     },
   };
 }

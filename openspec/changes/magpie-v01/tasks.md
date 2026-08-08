@@ -71,8 +71,8 @@
 
 ## 10. Operability tooling
 
-- [ ] 10.1 Implement `magpie validate <streamId|all>`: read-only scan of event rows (and optionally document types), upcast first, validate against registered shapes, report mismatches with row ids and issues, non-zero exit on failure (design D11)
-- [ ] 10.2 Implement `--json` output for the validate command for automation
+- [x] 10.1 Implement `magpie validate <streamId|all>`: read-only scan of event rows (and optionally document types), upcast first, validate against registered shapes, report mismatches with row ids and issues, non-zero exit on failure (design D11)
+- [x] 10.2 Implement `--json` output for the validate command for automation
 
 ## 11. Documentation
 

@@ -40,3 +40,8 @@ export type { SchemaOutput, ValidationIssue, ValidationResult } from "./standard
 export { isStandardSchema, validateWith } from "./standard-schema.js";
 export type { Store, StoreOptions } from "./store.js";
 export { createStore } from "./store.js";
+export type {
+  ValidateOptions,
+  ValidationMismatch,
+  ValidationReport,
+} from "./validate.js";

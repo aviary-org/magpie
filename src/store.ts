@@ -64,9 +64,10 @@ export interface Store {
   /** Runs a callback in one transaction; queued writes commit or roll back together. */
   session<T>(callback: (session: Session) => Promise<T> | T): Promise<T | undefined>;
   /**
-   /** Reads a document by id outside a session; returns nothing when absent
-    * (soft-deleted rows count as absent). An `expectedVersion` guards the read.
-    */
+   * Reads a document by id outside a session; returns nothing when absent
+   * (soft-deleted rows count as absent). An `expectedVersion` guards the read.
+   * Inline aggregate snapshots load the same way as hand-saved documents.
+   */
   load<TSchema extends StandardSchemaV1>(
     schema: TSchema,
     id: string | number | bigint,
@@ -74,7 +75,10 @@ export interface Store {
   ): Promise<LoadedDocument<SchemaOutput<TSchema>> | undefined>;
   /** A typed field-path builder for query filters and sorts over a shape. */
   path<T>(): QueryNode<T, []>;
-  /** Starts a query over a registered document type; filters, sorts, paginates. */
+  /**
+   * Starts a query over a registered document type or an inline aggregate's
+   * snapshot rows; filters, sorts, paginates.
+   */
   query<TSchema extends StandardSchemaV1>(schema: TSchema): DocumentQuery<SchemaOutput<TSchema>>;
   /**
    * Reads a stream's event history in version order; `fromVersion` starts the returned
@@ -132,6 +136,8 @@ export function createStore(options: StoreOptions): Store {
     names,
     eventShapes,
     streams,
+    upcasters,
+    inlineProjections,
     findDocument: (schema) => documentBySchema.get(schema),
   };
 
@@ -151,6 +157,18 @@ export function createStore(options: StoreOptions): Store {
     if (typeof name !== "string" || !NAME_PATTERN.test(name)) {
       throw new Error(`${kind} name must match ${NAME_PATTERN}, got "${String(name)}"`);
     }
+  }
+
+  /** The document-like registration behind a queryable schema: hand-saved or inline snapshot. */
+  function findQueryableDocument(schema: StandardSchemaV1): DocumentRegistration | undefined {
+    return documentBySchema.get(schema) ?? inlineAggregateDocuments.get(schema);
+  }
+
+  function unqueryableSchemaError(operation: string, schema: StandardSchemaV1): string {
+    if (aggregateBySchema.has(schema)) {
+      return `${operation}: the given schema is an aggregate without an inline lifecycle; live aggregates have no stored rows to query`;
+    }
+    return `${operation}: the given schema is not registered as a document type`;
   }
 
   let migrated = false;
@@ -265,17 +283,17 @@ export function createStore(options: StoreOptions): Store {
       if (autoCreate) {
         await ensureMigrated();
       }
-      const registration = documentBySchema.get(schema);
+      const registration = findQueryableDocument(schema);
       if (registration === undefined) {
-        throw new Error("load: the given schema is not registered as a document type");
+        throw new Error(unqueryableSchemaError("load", schema));
       }
       return loadDocument(sql as unknown as StoreReadSql, names, registration, id, expectedVersion);
     },
     path: <T>() => makeQueryNode() as unknown as QueryNode<T, []>,
     query<TSchema extends StandardSchemaV1>(schema: TSchema): DocumentQuery<SchemaOutput<TSchema>> {
-      const registration = documentBySchema.get(schema);
+      const registration = findQueryableDocument(schema);
       if (registration === undefined) {
-        throw new Error("query: the given schema is not registered as a document type");
+        throw new Error(unqueryableSchemaError("query", schema));
       }
       return makeDocumentQuery(sql, names, registration, ensureMigrated) as DocumentQuery<
         SchemaOutput<TSchema>

@@ -58,9 +58,9 @@
 ## 8. Inline projections
 
 - [x] 8.1 Implement the shared fold-definition model reused by live and inline lifecycles (design D7)
-- [ ] 8.2 Implement inline projection application: on session commit, for each affected stream, load the current snapshot row, fold new events, write back with version sourced from the stream's version (design D2)
-- [ ] 8.3 Ensure inline projection writes are queued in the same session transaction as the event appends (consistency spec)
-- [ ] 8.4 Implement snapshot queryability: projected rows retrievable through the document query surface (design D1)
+- [x] 8.2 Implement inline projection application: on session commit, for each affected stream, load the current snapshot row, fold new events, write back with version sourced from the stream's version (design D2)
+- [x] 8.3 Ensure inline projection writes are queued in the same session transaction as the event appends (consistency spec)
+- [x] 8.4 Implement snapshot queryability: projected rows retrievable through the document query surface (design D1)
 
 ## 9. Consistency and concurrency
 

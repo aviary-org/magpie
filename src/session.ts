@@ -2,7 +2,14 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { ISql, JSONValue, Sql, TransactionSql } from "postgres";
 import { ConcurrencyError, RollbackSignal, ValidationError } from "./errors.js";
 import type { MagpieNames } from "./naming.js";
-import type { DocumentRegistration, EventRegistration, StreamRegistration } from "./registry.js";
+import { applyInlineProjections } from "./projections.js";
+import type {
+  DocumentRegistration,
+  EventRegistration,
+  InlineProjection,
+  StreamRegistration,
+  UpcasterRegistration,
+} from "./registry.js";
 import { type SchemaOutput, validateWith } from "./standard-schema.js";
 
 /** One event to append: its stored (versioned) name and payload. */
@@ -81,7 +88,15 @@ export interface SessionContext {
   readonly names: MagpieNames;
   readonly eventShapes: ReadonlyMap<string, EventRegistration>;
   readonly streams: ReadonlyMap<string, StreamRegistration>;
+  readonly upcasters: ReadonlyMap<string, UpcasterRegistration>;
+  readonly inlineProjections: ReadonlyMap<string, readonly InlineProjection[]>;
   findDocument(schema: StandardSchemaV1): DocumentRegistration | undefined;
+}
+
+/** Mutable state shared by a session and its nested sessions. */
+interface SessionRunState {
+  /** Streams with appends in this session; their projections refresh at commit. */
+  readonly pendingStreams: Set<string>;
 }
 
 type PendingOperation = () => Promise<void>;
@@ -118,9 +133,11 @@ export async function runSession<T>(
 ): Promise<T | undefined> {
   return (
     sql.begin(async (tx) => {
-      const session = new SessionImpl(tx as unknown as SessionTx, context);
+      const state: SessionRunState = { pendingStreams: new Set() };
+      const session = new SessionImpl(tx as unknown as SessionTx, context, state);
       const result = await callback(session);
       await session.flush();
+      await applyInlineProjections(tx as unknown as SessionTx, context, state.pendingStreams);
       return result;
     }) as Promise<T>
   ).catch((error: unknown) => {
@@ -139,6 +156,7 @@ class SessionImpl implements Session {
   constructor(
     private readonly tx: SessionTx,
     private readonly context: SessionContext,
+    private readonly state: SessionRunState,
   ) {
     this.documents = {
       save: (schema, document, options) => this.enqueueSave(schema, document, options),
@@ -153,7 +171,7 @@ class SessionImpl implements Session {
   async session<T>(callback: (session: Session) => Promise<T> | T): Promise<T | undefined> {
     return (
       this.tx.savepoint(async (tx) => {
-        const nested = new SessionImpl(tx, this.context);
+        const nested = new SessionImpl(tx, this.context, this.state);
         const result = await callback(nested);
         await nested.flush();
         return result;
@@ -253,6 +271,7 @@ class SessionImpl implements Session {
       }
       validated.push({ type: event.type, data: result.value });
     }
+    this.state.pendingStreams.add(streamId);
     this.queue.push(() => flushAppend(this.tx, this.context, streamId, validated, expectedVersion));
   }
 }

@@ -15,6 +15,7 @@ import type {
   DocumentRegistration,
   EventRegistration,
   FoldFn,
+  InlineProjection,
   StreamContract,
   StreamRegistration,
   UpcasterFn,
@@ -49,7 +50,17 @@ export interface Store {
   event(name: string, schema: StandardSchemaV1): void;
   stream(name: string, contract: StreamContract): void;
   upcaster(storedName: string, upcast: UpcasterFn): void;
-  aggregate(streamName: string, schema: StandardSchemaV1, fold: FoldFn): void;
+  /**
+   * Registers a fold over a stream, keyed by the output schema so `store.fold` can
+   * invoke it live. With `inline: true` the same definition also persists its output
+   * into a document table on every append, inside the append's transaction.
+   */
+  aggregate(
+    streamName: string,
+    schema: StandardSchemaV1,
+    fold: FoldFn,
+    options?: { readonly inline?: boolean },
+  ): void;
   /** Runs a callback in one transaction; queued writes commit or roll back together. */
   session<T>(callback: (session: Session) => Promise<T> | T): Promise<T | undefined>;
   /**
@@ -112,6 +123,10 @@ export function createStore(options: StoreOptions): Store {
   const streams = new Map<string, StreamRegistration>();
   const upcasters = new Map<string, UpcasterRegistration>();
   const aggregateBySchema = new Map<StandardSchemaV1, AggregateRegistration>();
+  // The document-like registrations backing inline aggregate snapshot tables.
+  const inlineAggregateDocuments = new Map<StandardSchemaV1, DocumentRegistration>();
+  // Inline projections keyed by the stream name they fold, for the session write path.
+  const inlineProjections = new Map<string, InlineProjection[]>();
 
   const sessionContext: SessionContext = {
     names,
@@ -140,11 +155,16 @@ export function createStore(options: StoreOptions): Store {
 
   let migrated = false;
 
+  /** Every document table the DDL must know about, hand-registered and snapshot tables. */
+  function allDocumentRegistrations(): readonly DocumentRegistration[] {
+    return [...documentTypes.values(), ...inlineAggregateDocuments.values()];
+  }
+
   async function ensureMigrated(): Promise<void> {
     if (migrated) {
       return;
     }
-    await applyMigrations(sql, names, [...documentTypes.values()]);
+    await applyMigrations(sql, names, allDocumentRegistrations());
     migrated = true;
   }
 
@@ -192,7 +212,7 @@ export function createStore(options: StoreOptions): Store {
       }
       upcasters.set(storedName, { upcast });
     },
-    aggregate(streamName, schema, fold) {
+    aggregate(streamName, schema, fold, options) {
       requireName(streamName, "aggregate");
       requireStandardSchema(schema, `aggregate "${streamName}" schema`);
       if (!streams.has(streamName)) {
@@ -203,7 +223,23 @@ export function createStore(options: StoreOptions): Store {
           `aggregate for stream "${streamName}": an aggregate with this output schema is already registered`,
         );
       }
-      aggregateBySchema.set(schema, { streamName, schema, fold });
+      const inline = options?.inline ?? false;
+      if (options?.inline !== undefined && typeof options.inline !== "boolean") {
+        throw new Error(`aggregate "${streamName}": inline must be a boolean`);
+      }
+      aggregateBySchema.set(schema, { streamName, schema, fold, inline });
+      if (inline) {
+        const resolved = resolveDocumentConfig(schema);
+        inlineAggregateDocuments.set(schema, {
+          schema,
+          alias: resolved.alias,
+          idField: resolved.idField,
+          fields: resolved.fields,
+        });
+        const existing = inlineProjections.get(streamName) ?? [];
+        inlineProjections.set(streamName, [...existing, { alias: resolved.alias, fold }]);
+        migrated = false;
+      }
     },
     async session<T>(callback: (session: Session) => Promise<T> | T): Promise<T | undefined> {
       if (autoCreate) {
@@ -219,7 +255,7 @@ export function createStore(options: StoreOptions): Store {
         await ensureMigrated();
         return;
       }
-      await applyMigrations(sql, names, [...documentTypes.values()]);
+      await applyMigrations(sql, names, allDocumentRegistrations());
     },
     async load<TSchema extends StandardSchemaV1>(
       schema: TSchema,

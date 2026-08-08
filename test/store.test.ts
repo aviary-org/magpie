@@ -123,4 +123,24 @@ describe("registration validation", () => {
     const store = makeStore();
     expect(() => store.document(plainSchema)).toThrow(/alias/);
   });
+
+  it("accepts the inline lifecycle on aggregates", () => {
+    const store = makeStore();
+    expect(() => {
+      store.event("order_placed", plainSchema);
+      store.stream("order", { events: ["order_placed"] });
+      store.aggregate("order", accountSchema, (state) => state, { inline: true });
+    }).not.toThrow();
+  });
+
+  it("rejects a non-boolean inline option", () => {
+    const store = makeStore();
+    store.event("order_placed", plainSchema);
+    store.stream("order", { events: ["order_placed"] });
+    expect(() =>
+      store.aggregate("order", accountSchema, (state) => state, {
+        inline: "yes" as unknown as boolean,
+      }),
+    ).toThrow(/inline/);
+  });
 });

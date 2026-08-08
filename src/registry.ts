@@ -38,4 +38,13 @@ export interface AggregateRegistration {
   readonly streamName: string;
   readonly schema: StandardSchemaV1;
   readonly fold: FoldFn;
+  /** Persist the fold output into the aggregate's document table on every append. */
+  readonly inline: boolean;
+}
+
+/** The inline lifecycle of a fold: the output persisted as snapshot rows. */
+export interface InlineProjection {
+  /** The document table alias the snapshot rows live in. */
+  readonly alias: string;
+  readonly fold: FoldFn;
 }

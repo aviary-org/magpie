@@ -1,6 +1,6 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createStore, type Store } from "../src/index.js";
+import { createStore, type FoldFn, type Store, type StoredEvent } from "../src/index.js";
 import { createTestDatabase, type TestDatabase } from "./helpers/test-db.js";
 
 interface OrderPlacedV2 {
@@ -16,6 +16,16 @@ interface OrderCancelled {
 
 interface NoteAdded {
   text: string;
+}
+
+interface OrderState {
+  orderId: string;
+  total: number;
+  notes: readonly string[];
+}
+
+interface OrderRegions {
+  regions: readonly string[];
 }
 
 function schema<TOutput extends object>(
@@ -55,6 +65,44 @@ const noteAddedSchema = schema<NoteAdded>("note_added", (value) => {
   return typeof event?.text === "string";
 });
 
+const orderStateSchema = schema<OrderState>("order_state", (value) => {
+  const state = value as Partial<OrderState> | null;
+  return (
+    typeof state?.orderId === "string" &&
+    typeof state?.total === "number" &&
+    Array.isArray(state?.notes)
+  );
+});
+
+const orderRegionsSchema = schema<OrderRegions>("order_regions", (value) => {
+  const state = value as Partial<OrderRegions> | null;
+  return Array.isArray(state?.regions);
+});
+
+const foldOrderState: FoldFn = (state, event) => {
+  const current = (state ?? { orderId: "", total: 0, notes: [] }) as OrderState;
+  const stored = event as StoredEvent;
+  switch (stored.type) {
+    case "order_placed_v2": {
+      const placed = stored.data as OrderPlacedV2;
+      return { ...current, orderId: placed.orderId, total: current.total + placed.amount };
+    }
+    case "note_added":
+      return { ...current, notes: [...current.notes, (stored.data as NoteAdded).text] };
+    default:
+      return current;
+  }
+};
+
+const foldOrderRegions: FoldFn = (state, event) => {
+  const stored = event as StoredEvent;
+  const regions = (state as OrderRegions | undefined)?.regions ?? [];
+  if (stored.type === "order_placed" || stored.type === "order_placed_v2") {
+    return { regions: [...regions, (stored.data as OrderPlacedV2).region] };
+  }
+  return { regions };
+};
+
 let db: TestDatabase;
 let store: Store;
 
@@ -72,6 +120,8 @@ beforeAll(async () => {
   store.stream("order", {
     events: ["order_placed", "order_placed_v2", "order_cancelled", "note_added"],
   });
+  store.aggregate("order", orderStateSchema, foldOrderState);
+  store.aggregate("order", orderRegionsSchema, foldOrderRegions);
   await store.migrate();
 });
 
@@ -173,5 +223,83 @@ describe("read stream history", () => {
     const history = await store.readStream("o5");
     expect(history).toHaveLength(1);
     expect(history[0]?.data).toEqual({ notTheShape: true });
+  });
+});
+
+describe("on-demand aggregation", () => {
+  it("folds a stream's events into the aggregate state", async () => {
+    await store.session(async (s) => {
+      await s.events.append("f1", [
+        { type: "order_placed_v2", data: { orderId: "f1", amount: 5, region: "eu" } },
+        { type: "note_added", data: { text: "hello" } },
+        { type: "order_placed_v2", data: { orderId: "f1", amount: 7, region: "us" } },
+      ]);
+    });
+
+    const state = await store.fold(orderStateSchema, "f1");
+    expect(state).toEqual({ orderId: "f1", total: 12, notes: ["hello"] });
+  });
+
+  it("returns nothing for a stream that never had events", async () => {
+    await expect(store.fold(orderStateSchema, "never-folded")).resolves.toBeUndefined();
+  });
+
+  it("never persists the aggregate and recomputes on every fold", async () => {
+    await store.fold(orderStateSchema, "f1");
+
+    const tables = await db.sql`
+      select tablename from pg_tables
+      where schemaname = 'public' and tablename like 'magpie_doc_%'
+    `;
+    expect(tables.length).toBe(0);
+    const events =
+      await db.sql`select count(*) as count from public.magpie_events where stream_id = 'f1'`;
+    expect(events[0]?.count).toBe("3");
+
+    await expect(store.fold(orderStateSchema, "f1")).resolves.toEqual({
+      orderId: "f1",
+      total: 12,
+      notes: ["hello"],
+    });
+  });
+
+  it("feeds upcast events to the fold", async () => {
+    await db.sql`
+      insert into public.magpie_streams (id, version, type) values ('f2', 1, 'order')
+    `;
+    await db.sql`
+      insert into public.magpie_events (stream_id, version, type, data)
+      values ('f2', 1, 'order_placed', ${db.sql.json({ orderId: "f2", amount: 5 })})
+    `;
+    await store.session(async (s) => {
+      await s.events.append("f2", [
+        { type: "order_placed_v2", data: { orderId: "f2", amount: 9, region: "ap" } },
+      ]);
+    });
+
+    const regions = await store.fold(orderRegionsSchema, "f2");
+    expect(regions).toEqual({ regions: ["eu", "ap"] });
+  });
+
+  it("lets two aggregates fold the same stream independently", async () => {
+    const state = await store.fold(orderStateSchema, "f2");
+    const regions = await store.fold(orderRegionsSchema, "f2");
+    expect(state).toEqual({ orderId: "f2", total: 9, notes: [] });
+    expect(regions).toEqual({ regions: ["eu", "ap"] });
+  });
+
+  it("rejects folding with an unregistered output schema", async () => {
+    const unregisteredSchema = schema<{ x: string }>("unregistered", () => true);
+    await expect(store.fold(unregisteredSchema, "f1")).rejects.toThrow(
+      "fold: the given schema is not registered as an aggregate output",
+    );
+  });
+
+  it("rejects a second aggregate with the same output schema", () => {
+    const duplicateSchema = schema<{ y: string }>("duplicate", () => true);
+    store.aggregate("order", duplicateSchema, () => undefined);
+    expect(() => store.aggregate("order", duplicateSchema, () => undefined)).toThrow(
+      /an aggregate with this output schema is already registered/,
+    );
   });
 });

@@ -1,7 +1,12 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { Sql } from "postgres";
 import { type DocumentConfigFn, resolveDocumentConfig } from "./document.js";
-import { type EventReadContext, readStreamHistory, type StoredEvent } from "./events.js";
+import {
+  type EventReadContext,
+  foldStream,
+  readStreamHistory,
+  type StoredEvent,
+} from "./events.js";
 import { applyMigrations } from "./migrate.js";
 import { makeNames } from "./naming.js";
 import { type DocumentQuery, makeDocumentQuery, makeQueryNode, type QueryNode } from "./query.js";
@@ -68,6 +73,15 @@ export interface Store {
     streamId: string,
     options?: { readonly fromVersion?: bigint },
   ): Promise<readonly StoredEvent[]>;
+  /**
+   * Folds a stream's events on demand with a registered aggregate; nothing when the
+   * stream has no events. Aggregates are keyed by their output schema, so several
+   * aggregates may fold the same stream independently.
+   */
+  fold<TSchema extends StandardSchemaV1>(
+    schema: TSchema,
+    streamId: string,
+  ): Promise<SchemaOutput<TSchema> | undefined>;
   /** Applies all registered schema idempotently; safe to re-run. */
   migrate(): Promise<void>;
 }
@@ -97,7 +111,7 @@ export function createStore(options: StoreOptions): Store {
   const eventShapes = new Map<string, EventRegistration>();
   const streams = new Map<string, StreamRegistration>();
   const upcasters = new Map<string, UpcasterRegistration>();
-  const aggregates: AggregateRegistration[] = [];
+  const aggregateBySchema = new Map<StandardSchemaV1, AggregateRegistration>();
 
   const sessionContext: SessionContext = {
     names,
@@ -184,7 +198,12 @@ export function createStore(options: StoreOptions): Store {
       if (!streams.has(streamName)) {
         throw new Error(`aggregate references unknown stream "${streamName}"`);
       }
-      aggregates.push({ streamName, schema, fold });
+      if (aggregateBySchema.has(schema)) {
+        throw new Error(
+          `aggregate for stream "${streamName}": an aggregate with this output schema is already registered`,
+        );
+      }
+      aggregateBySchema.set(schema, { streamName, schema, fold });
     },
     async session<T>(callback: (session: Session) => Promise<T> | T): Promise<T | undefined> {
       if (autoCreate) {
@@ -236,6 +255,25 @@ export function createStore(options: StoreOptions): Store {
         streamId,
         options?.fromVersion,
       );
+    },
+    async fold<TSchema extends StandardSchemaV1>(
+      schema: TSchema,
+      streamId: string,
+    ): Promise<SchemaOutput<TSchema> | undefined> {
+      if (autoCreate) {
+        await ensureMigrated();
+      }
+      const registration = aggregateBySchema.get(schema);
+      if (registration === undefined) {
+        throw new Error("fold: the given schema is not registered as an aggregate output");
+      }
+      const state = await foldStream(
+        sql as unknown as StoreReadSql,
+        eventReadContext,
+        registration.fold,
+        streamId,
+      );
+      return state as SchemaOutput<TSchema> | undefined;
     },
   };
 }

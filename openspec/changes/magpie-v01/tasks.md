@@ -76,7 +76,7 @@
 
 ## 11. Documentation
 
-- [ ] 11.1 README: quick start (connection, register, migrate, save/append/query), v0.1 scope statement
-- [ ] 11.2 Document snapshot-row ownership: rebuild truncates projection tables; hand-saving a snapshot-owned id is operator responsibility (design D10)
-- [ ] 11.3 Document validation timing (ingestion always; no re-validation on reads; upcaster output validated) and the backfill contract (`magpie validate` before flipping the app on)
-- [ ] 11.4 Document the deferred list: async projections, multi-tenancy, multi-stream projections, driver adapters, cursor pagination, multi-stage upcast chains
+- [x] 11.1 README: quick start (connection, register, migrate, save/append/query), v0.1 scope statement
+- [x] 11.2 Document snapshot-row ownership: rebuild truncates projection tables; hand-saving a snapshot-owned id is operator responsibility (design D10)
+- [x] 11.3 Document validation timing (ingestion always; no re-validation on reads; upcaster output validated) and the backfill contract (`magpie validate` before flipping the app on)
+- [x] 11.4 Document the deferred list: async projections, multi-tenancy, multi-stream projections, driver adapters, cursor pagination, multi-stage upcast chains

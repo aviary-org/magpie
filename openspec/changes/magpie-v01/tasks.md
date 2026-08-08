@@ -48,10 +48,10 @@
 
 ## 7. Event store
 
-- [ ] 7.1 Implement `s.events.append(streamId, events)` with auto-create for missing streams; `expectedVersion: 0` and `expectedVersion: N` semantics (design D9)
-- [ ] 7.2 Implement append-time validation of event payloads against the registered event schema; unregistered event names rejected
-- [ ] 7.3 Implement the append SQL path: stream version check before insert (server-side `magpie_quick_append_events` function or equivalent), `(stream_id, version)` unique backstop, stream version bump (design D9)
-- [ ] 7.4 Implement global event sequence allocation via `magpie_events_sequence`
+- [x] 7.1 Implement `s.events.append(streamId, events)` with auto-create for missing streams; `expectedVersion: 0` and `expectedVersion: N` semantics (design D9)
+- [x] 7.2 Implement append-time validation of event payloads against the registered event schema; unregistered event names rejected
+- [x] 7.3 Implement the append SQL path: stream version check before insert (server-side `magpie_quick_append_events` function or equivalent), `(stream_id, version)` unique backstop, stream version bump (design D9)
+- [x] 7.4 Implement global event sequence allocation via `magpie_events_sequence`
 - [ ] 7.5 Implement read stream history (full and from-version slices, in order) with upcasting applied at the deserialization chokepoint (design D7)
 - [ ] 7.6 Implement on-demand aggregation: fold a stream's events with the registered fold definition, absent-stream → nothing (design D7)
 

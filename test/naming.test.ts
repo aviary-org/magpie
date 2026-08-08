@@ -24,7 +24,6 @@ describe("makeNames", () => {
     expect(names.eventsTable()).toBe("magpie.magpie_events");
     expect(names.streamsTable()).toBe("magpie.magpie_streams");
     expect(names.eventsSequence()).toBe("magpie.magpie_events_sequence");
-    expect(names.quickAppendEvents()).toBe("magpie.magpie_quick_append_events");
   });
 
   it("exposes the schema for CREATE SCHEMA", () => {

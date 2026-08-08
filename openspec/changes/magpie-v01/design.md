@@ -102,7 +102,7 @@ No ambient context (AsyncLocalStorage), no `using`/`Symbol.dispose` resource han
 ### D9. Optimistic concurrency API
 
 - Documents: save with the expected version read from the loaded document; mismatch → concurrency error. Explicit bypass: `expectedVersion: "any"` → unconditional upsert (`ON CONFLICT (id) DO UPDATE`, no version guard), version still advances. Projection snapshots: no bypass; version always sourced from the stream.
-- Events: append with expected stream version. `append(streamId, events)` auto-creates the stream if missing; `{ expectedVersion: 0 }` requires it not exist; `{ expectedVersion: N }` requires it at version N. Mismatch → concurrency error, nothing written. The append path uses a server-side function (`magpie_quick_append_events`) that checks the stream version before inserting, with `(stream_id, version)` uniqueness as the database backstop — a proven server-side guard pattern, raising a typed error on version mismatch.
+- Events: append with expected stream version. `append(streamId, events)` auto-creates the stream if missing; `{ expectedVersion: 0 }` requires it not exist; `{ expectedVersion: N }` requires it at version N. Mismatch → concurrency error, nothing written. The append path checks the stream version before inserting — v0.1 does this with a per-stream row lock (`SELECT ... FOR UPDATE`), the same exactly-one-winner guarantee as a server-side guard function without the extra DDL artifact — with `(stream_id, version)` uniqueness as the database backstop, raising a typed error on version mismatch.
 
 ### D10. Snapshot row ownership: document, don't enforce
 
@@ -118,7 +118,7 @@ A read-only CLI/admin op that scans every event row (or every row of a document 
 
 - **One driver dependency (postgres-js) in v0.1** → narrows the "who can adopt" surface; mitigation: user injects the `sql` instance (their pool, their choice) and a driver interface is deferred, not foreclosed.
 - **Explicit per-field cast registration is novel relative to static-typed designs** → some users will forget a cast and get text comparisons on a numeric field; mitigation: default casts cover the common cases, and index creation (`cast("numeric").index()`) surfaces the type at DDL time.
-- **PL/pgSQL append function adds a DDL artifact to manage** → one more thing in `migrate()`; mitigation: idempotent `CREATE OR REPLACE`, single function, follows a proven pattern.
+- **Server-side append guard would be a DDL artifact to manage** → avoided in v0.1 by the row-lock equivalent, which needs no function; if a function-based guard is ever added, idempotent `CREATE OR REPLACE` keeps `migrate()` re-runnable.
 - **`bigint` versions are monotonic per row/stream** → fine for v0.1's OCC; uuid-etag mode, if ever needed, is additive (new column), not a migration.
 - **No async projections means operators self-manage catch-up** → explicitly out of scope for v0.1 (design-partner grade); schema choices (global event sequence, per-stream versions, snapshot version = stream version) keep the door open without restructuring.
 - **Rebuild truncation of snapshot tables (reference behavior, inherited)** → operator-visible data loss if hand-saved rows live in projection tables; mitigation: documented in D10, plus the config-time warning.

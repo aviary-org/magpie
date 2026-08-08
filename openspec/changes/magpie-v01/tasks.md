@@ -38,13 +38,13 @@
 
 ## 6. Query engine
 
-- [ ] 6.1 Implement `store.path<T>()` typed field-path builder over the schema's inferred output type, with nested traversal through objects (design D5)
-- [ ] 6.2 Implement leaf operators (`eq`, `ne`, `lt`, `gt`, `lte`, `gte`, `in`, `isNull`, `notNull`, `startsWith`, `endsWith`, `contains`, `between`) and `and`/`or` composition
-- [ ] 6.3 Implement SQL translation: `->` descent, `->>` leaf, `CAST(... as <pgType>)` for typed comparisons, `@>` for containment (design D5)
-- [ ] 6.4 Implement the default cast map (number→numeric, boolean→boolean, Date→timestamptz via wrapper, bigint→bigint, string→no cast) (design D6)
-- [ ] 6.5 Implement per-field cast overrides via the document config callback (`t.path.x.cast("uuid")`) (design D6)
-- [ ] 6.6 Implement query execution: `query(schema).where(...).orderBy(...).limit(n).offset(n).toArray()`, with filters translated and bound over the transaction or store
-- [ ] 6.7 Implement duplicated index columns and GIN `containsIndex()` DDL from the config callback (design D1, D6)
+- [x] 6.1 Implement `store.path<T>()` typed field-path builder over the schema's inferred output type, with nested traversal through objects (design D5)
+- [x] 6.2 Implement leaf operators (`eq`, `ne`, `lt`, `gt`, `lte`, `gte`, `in`, `isNull`, `notNull`, `startsWith`, `endsWith`, `contains`, `between`) and `and`/`or` composition
+- [x] 6.3 Implement SQL translation: `->` descent, `->>` leaf, `CAST(... as <pgType>)` for typed comparisons, `@>` for containment (design D5)
+- [x] 6.4 Implement the default cast map (number→numeric, boolean→boolean, Date→timestamptz via wrapper, bigint→bigint, string→no cast) (design D6)
+- [x] 6.5 Implement per-field cast overrides via the document config callback (`t.path.x.cast("uuid")`) (design D6)
+- [x] 6.6 Implement query execution: `query(schema).where(...).orderBy(...).limit(n).offset(n).toArray()`, with filters translated and bound over the transaction or store
+- [x] 6.7 Implement duplicated index columns and GIN `containsIndex()` DDL from the config callback (design D1, D6)
 
 ## 7. Event store
 

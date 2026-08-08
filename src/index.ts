@@ -6,6 +6,18 @@ export type {
   PathRoot,
 } from "./document.js";
 export { ConcurrencyError, RollbackSignal, ValidationError } from "./errors.js";
+export {
+  type AndCondition,
+  and,
+  type Condition,
+  type DocumentQuery,
+  type LeafCondition,
+  type LeafOp,
+  type OrCondition,
+  or,
+  type QueryNode,
+  type SortHandle,
+} from "./query.js";
 export type {
   AggregateRegistration,
   DocumentRegistration,

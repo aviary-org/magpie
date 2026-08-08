@@ -26,13 +26,23 @@ function quoteQualified(qualified: string): string {
     : `${quoteIdentifier(qualified.slice(0, dot))}.${quoteIdentifier(qualified.slice(dot + 1))}`;
 }
 
-/** SQL text extracting a JSON value as text: `data #>> '<path literal>'`. */
-export function dataExtraction(path: readonly string[]): string {
+/** The `'{a,"b c"}'` path literal used by the `#>` and `#>>` operators. */
+function pathLiteral(path: readonly string[]): string {
   const keys = path
     .map((segment) => `"${segment.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`)
     .join(",")
     .replace(/'/g, "''");
-  return `data #>> '{${keys}}'`;
+  return `'{${keys}}'`;
+}
+
+/** SQL text extracting a JSON value as text: `data #>> '<path literal>'`. */
+export function dataExtraction(path: readonly string[]): string {
+  return `data #>> ${pathLiteral(path)}`;
+}
+
+/** SQL text extracting a JSON value as jsonb: `data #> '<path literal>'`. */
+export function dataJsonExtraction(path: readonly string[]): string {
+  return `data #> ${pathLiteral(path)}`;
 }
 
 /**
@@ -59,7 +69,11 @@ export function duplicatedColumn(field: FieldSpec, names: MagpieNames): Duplicat
   return { name, type, expression: castExpression(extraction, field.cast, names) };
 }
 
-function castExpression(extraction: string, cast: string | undefined, names: MagpieNames): string {
+export function castExpression(
+  extraction: string,
+  cast: string | undefined,
+  names: MagpieNames,
+): string {
   if (cast === undefined) {
     return extraction;
   }

@@ -3,6 +3,7 @@ import type { Sql } from "postgres";
 import { type DocumentConfigFn, resolveDocumentConfig } from "./document.js";
 import { applyMigrations } from "./migrate.js";
 import { makeNames } from "./naming.js";
+import { type DocumentQuery, makeDocumentQuery, makeQueryNode, type QueryNode } from "./query.js";
 import type {
   AggregateRegistration,
   DocumentRegistration,
@@ -46,14 +47,18 @@ export interface Store {
   /** Runs a callback in one transaction; queued writes commit or roll back together. */
   session<T>(callback: (session: Session) => Promise<T> | T): Promise<T | undefined>;
   /**
-   * Reads a document by id outside a session; returns nothing when absent
-   * (soft-deleted rows count as absent). An `expectedVersion` guards the read.
-   */
+   /** Reads a document by id outside a session; returns nothing when absent
+    * (soft-deleted rows count as absent). An `expectedVersion` guards the read.
+    */
   load<TSchema extends StandardSchemaV1>(
     schema: TSchema,
     id: string | number | bigint,
     expectedVersion?: bigint,
   ): Promise<LoadedDocument<SchemaOutput<TSchema>> | undefined>;
+  /** A typed field-path builder for query filters and sorts over a shape. */
+  path<T>(): QueryNode<T, []>;
+  /** Starts a query over a registered document type; filters, sorts, paginates. */
+  query<TSchema extends StandardSchemaV1>(schema: TSchema): DocumentQuery<SchemaOutput<TSchema>>;
   /** Applies all registered schema idempotently; safe to re-run. */
   migrate(): Promise<void>;
 }
@@ -195,6 +200,16 @@ export function createStore(options: StoreOptions): Store {
         throw new Error("load: the given schema is not registered as a document type");
       }
       return loadDocument(sql as unknown as StoreReadSql, names, registration, id, expectedVersion);
+    },
+    path: <T>() => makeQueryNode() as unknown as QueryNode<T, []>,
+    query<TSchema extends StandardSchemaV1>(schema: TSchema): DocumentQuery<SchemaOutput<TSchema>> {
+      const registration = documentBySchema.get(schema);
+      if (registration === undefined) {
+        throw new Error("query: the given schema is not registered as a document type");
+      }
+      return makeDocumentQuery(sql, names, registration, ensureMigrated) as DocumentQuery<
+        SchemaOutput<TSchema>
+      >;
     },
   };
 }

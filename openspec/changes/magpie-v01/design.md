@@ -84,7 +84,7 @@ No per-event schema-version column. The stored `type` column carries the version
 - `store.upcaster("order_completed", (old) => upcast(old))` transforms old-name rows to the current shape at read time.
 - `store.stream("order", { events: [...] })` defines the write-time contract of allowed events; `store.aggregate(stream, AccountSchema, fold)` references a stream and defines read-time fold logic.
 
-Upcasters are keyed by stored name; each row maps to exactly one upcaster (no multi-stage chains in v0.1) — the proven design for this problem. Upcasting runs at the single event-deserialization chokepoint, before any fold or read logic.
+Upcasters are keyed by stored name; each row maps to exactly one upcaster (no multi-stage chains in v0.1) — the proven design for this problem. Upcasting runs at the single event-deserialization chokepoint, before any fold or read logic. At that chokepoint an upcaster keyed by the stored name runs first when registered, and its output is validated against the shape registered under that stored name — the current shape — so evolving an event means registering the current shape under the old stored name (plus a versioned name for new appends) alongside the upcaster. Rows without an upcaster are returned as stored: ingestion already validated them, and reads never re-validate.
 
 ### D8. Unit of work: explicit callback session
 

@@ -6,6 +6,7 @@ export type {
   PathRoot,
 } from "./document.js";
 export { ConcurrencyError, RollbackSignal, ValidationError } from "./errors.js";
+export type { StoredEvent } from "./events.js";
 export {
   type AndCondition,
   and,

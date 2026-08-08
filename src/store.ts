@@ -1,6 +1,7 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { Sql } from "postgres";
 import { type DocumentConfigFn, resolveDocumentConfig } from "./document.js";
+import { type EventReadContext, readStreamHistory, type StoredEvent } from "./events.js";
 import { applyMigrations } from "./migrate.js";
 import { makeNames } from "./naming.js";
 import { type DocumentQuery, makeDocumentQuery, makeQueryNode, type QueryNode } from "./query.js";
@@ -59,6 +60,14 @@ export interface Store {
   path<T>(): QueryNode<T, []>;
   /** Starts a query over a registered document type; filters, sorts, paginates. */
   query<TSchema extends StandardSchemaV1>(schema: TSchema): DocumentQuery<SchemaOutput<TSchema>>;
+  /**
+   * Reads a stream's event history in version order; `fromVersion` starts the returned
+   * slice at that version. Absent streams read as an empty history.
+   */
+  readStream(
+    streamId: string,
+    options?: { readonly fromVersion?: bigint },
+  ): Promise<readonly StoredEvent[]>;
   /** Applies all registered schema idempotently; safe to re-run. */
   migrate(): Promise<void>;
 }
@@ -95,6 +104,12 @@ export function createStore(options: StoreOptions): Store {
     eventShapes,
     streams,
     findDocument: (schema) => documentBySchema.get(schema),
+  };
+
+  const eventReadContext: EventReadContext = {
+    names,
+    eventShapes,
+    upcasters,
   };
 
   function requireStandardSchema(value: unknown, what: string): void {
@@ -210,6 +225,17 @@ export function createStore(options: StoreOptions): Store {
       return makeDocumentQuery(sql, names, registration, ensureMigrated) as DocumentQuery<
         SchemaOutput<TSchema>
       >;
+    },
+    async readStream(streamId, options) {
+      if (autoCreate) {
+        await ensureMigrated();
+      }
+      return readStreamHistory(
+        sql as unknown as StoreReadSql,
+        eventReadContext,
+        streamId,
+        options?.fromVersion,
+      );
     },
   };
 }
